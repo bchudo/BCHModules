@@ -4,10 +4,12 @@
 
 from .. import loader, utils
 
-import random
-from contextlib import suppress
 from telethon.tl.types import Message
 import asyncio
+import logging
+from telethon.tl.functions.channels import JoinChannelRequest
+
+logger = logging.getLogger(__name__)
 
 @loader.tds
 class ImageGeneratorMod(loader.Module):
@@ -30,20 +32,24 @@ class ImageGeneratorMod(loader.Module):
 	def __init__(self):
 		self.use_chatgpt = False
 
-	async def client_ready(self):
-		await self.request_join(
-			"@bchmodules",
-			"Подпишись на канал, дружище :3"
-		)
+	async def client_ready(self, client, db):
 		check = await self.client.get_messages("@YamiChat_bot", limit=1)
+		self._client = client
 		try:
 			check[0]
 		except IndexError:
 			await self.client.send_message("@YamiChat_bot", "/start")
-		await self.request_join(
-			"@YamiChannel",
-			"Подпишись, иначе модуль не будет работать"
-		)
+		yami_bot = await self.client.get_entity("t.me/YamiChat_bot")
+		await utils.dnd(client=self.client, peer=yami_bot, archive=True)
+		try:
+			channels = [
+				await self.client.get_entity("t.me/bchmodules"),
+				await self.client.get_entity("t.me/YamiChannel")
+			]
+			await client(JoinChannelRequest(channels[0]))
+			await client(JoinChannelRequest(channels[1]))
+		except Exception as e:
+			logger.error(f"Can't join channels\n{e}")
 
 	@loader.command(ru_doc="использовать ChatGPT генерациях запроса? По умолчанию - нет.")
 	async def usechatgptcmd(self, message: Message):
