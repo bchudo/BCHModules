@@ -123,22 +123,22 @@ class AbdullahMod(loader.Module):
         en_doc="<surah:ayat>"
     )
     async def ayatcmd(self, message: Message):
-    	"""<surah:ayat>"""
-    	args = utils.get_args_raw(message)
-    	pam = args.split(":")
-    	if len(pam) <= 1:
-    		await utils.answer(message=message, response = self.strings('ayat_wrong'))
-    	if len(pam) == 2:
-    		url = f"https://quran-online.ru/{args}"
-    		html = (requests.get(url)).text
-    		soup = BeautifulSoup(html, 'html.parser')
+        """<surah:ayat>"""
+        args = utils.get_args_raw(message)
+        pam = args.split(":")
+        if len(pam) <= 1:
+            await utils.answer(message=message, response = self.strings('ayat_wrong'))
+        if len(pam) == 2:
+            url = f"https://quran-online.ru/{args}"
+            html = (requests.get(url)).text
+            soup = BeautifulSoup(html, 'html.parser')
             try:
-        		ayat = (((soup.findAll('dl', class_= 'dl-horizontal'))[6]).findAll('dd', class_ = 'ayat'))[0].text
-        		await utils.answer(message=message, response=ayat)
+                ayat = (((soup.findAll('dl', class_= 'dl-horizontal'))[6]).findAll('dd', class_ = 'ayat'))[0].text
+                await utils.answer(message=message, response=ayat)
             except IndexError:
                 await utils.answer(message=message, response=self.strings('ayat_wrong'))
-    	if len(pam) >= 3:
-    		await utils.answer(message=message, response=self.strings('ayat_wrong'))
+        if len(pam) >= 3:
+            await utils.answer(message=message, response=self.strings('ayat_wrong'))
 
     async def watcher(self, message: Message):
         try:
