@@ -4,6 +4,8 @@
 
 from .. import loader, utils
 
+import random
+from contextlib import suppress
 from telethon.tl.types import Message
 import asyncio
 import logging
@@ -19,14 +21,16 @@ class ImageGeneratorMod(loader.Module):
 		"chatgpt_disabled": "❌ <b>ChatGPT in prompt generations disabled</b>",
 		"chatgpt_enabled": "✅ <b>ChatGPT in prompt generations enabled</b>",
 		"no_args": "❌ No arguments!",
-		"generation": "<b>⏳ Generation . . .</b>\n\n<b>Prompt</b>: <i>{}</i>"
+		"generation": "<b>⏳ Generation . . .</b>\n\n<b>Prompt</b>: <i>{}</i>",
+		"error": "❌ <b>Error!</b> <i>Check in PM with @YamiChat_bot</i>"
 	}
 	strings_ru = {
 		"name": "ImageGenerator",
 		"chatgpt_disabled": "❌ <b>ChatGPT в генерациях запроса выключен</b>",
 		"chatgpt_enabled": "✅ <b>ChatGPT в генерациях запроса включен</b>",
 		"no_args": "❌ Нет аргументов!",
-		"generation": "<b>⏳ Генерация . . .</b>\n\n<b>Промпт</b>: <i>{}</i>"
+		"generation": "<b>⏳ Генерация . . .</b>\n\n<b>Промпт</b>: <i>{}</i>",
+		"error": "❌ <b>Ошибка!</b> <i>Смотрите ее в ЛС с @YamiChat_bot</i>"
 	}
 
 	def __init__(self):
@@ -88,6 +92,9 @@ class ImageGeneratorMod(loader.Module):
 			if "Image for: " in msgs[0].text:
 				await message.delete()
 				break
+			if "Ваш запрос похож на небезопасный" in msgs[0].text or "Ошибка!" in msgs[0].text:
+				await utils.answer(message=message, response=self.strings("error"))
+				return
 		images_list = []
 		images = await self.client.get_messages("@YamiChat_bot", limit=4)
 		for i in images:
