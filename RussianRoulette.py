@@ -15,14 +15,14 @@ from ..inline.types import InlineCall
 @loader.tds
 class RussianRouletteMod(loader.Module):
 	"""Русская рулетка"""
-	strings = {
+	strings_ru = {
 		"name": "RussianRoulette",
 		"win": "🥳 <b>Вы победили!</b>",
 		"lose": "😓 <b>Вы проиграли!</b>",
 		"userbot_working": "✔️ <b>Юзербот снова работает.</b>",
 		"go_play": "<b>Поиграем</b> 😏"
 	}
-	strings_ru = {
+	strings = {
 		"name": "RussianRoulette",
 		"win": "🥳 <b>You win!</b>",
 		"lose": "😓 <b>You lose!</b>",
@@ -91,7 +91,7 @@ class RussianRouletteMod(loader.Module):
 	async def rrplaycmd(self, message):
 		"""play to russian roulette"""
 		await self.inline.form(
-			text="Поиграем)",
+			text=self.strings("go_play"),
 			reply_markup=(await self.return_buttons()),
 			message=message,
 			disable_security=True if self.config['disable_security'] else False
