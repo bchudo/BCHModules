@@ -103,7 +103,6 @@ class ImageGeneratorMod(loader.Module):
 		reply = await message.get_reply_message()
 		await self.client.send_file(
 			message.peer_id,
-			reply_to=reply.id if reply else None,
 			file=images_list,
 			caption= (images[0].text + "\n\nCreated by <b><a href=\"https://t.me/YamiChat_bot\">Yami</a></b>") if images[0].text else None,
 			force_document=False
