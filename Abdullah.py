@@ -4,27 +4,19 @@
 
 from .. import loader, utils
 
-import random
-from contextlib import suppress
 from telethon.tl.types import Message
-import requests
-from bs4 import BeautifulSoup
-import datetime
+import aiohttp
 
 @loader.tds
 class AbdullahMod(loader.Module):
     """Раб Аллаха."""
-    strings = {
-        "name": "Abdullah",
-        "hadis_wrong": "❌ Error. Right use: <hadis number>. \nExample: .bukhari 1190",
-        "ayat_wrong": "❌ Error. Right use: <surah:ayat>. \nExample: .ayat 2:255"
-    }
-    strings_ru = {
-        "name": "Abdullah",
-        "hadis_wrong": "❌ Ошибка. Правильное использование: <номер хадиса>. Пример: .bukhari 1190",
-        "ayat_wrong": "❌ Ошибка. Правильное использование: <сура:аят>. Пример: .ayat 2:255"
-    }
 
+    strings = {
+        "name": "Abdullah"
+    }
+    quran_url = "http://api.alquran.cloud/v1/ayah/{sura}:{ayat}/ru.kuliev"
+    hadith_url = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/{lang}-{edition}/{number}.json"
+    
     def __init__(self):
         self.config = loader.ModuleConfig(
             loader.ConfigValue(
@@ -35,148 +27,84 @@ class AbdullahMod(loader.Module):
             ),
             loader.ConfigValue(
                 "hadis_lang",
-                "English",
-                "Язык, на котором будут хадисы. РУССКИЙ МОЖЕТ ПЕРЕВОДИТЬСЯ НЕПРАВИЛЬНО",
-                validator = loader.validators.Choice(["English", "Arabic", "Russian"])
+                "rus",
+                "Язык, на котором будут хадисы",
+                validator = loader.validators.Choice(["rus", "ara", "eng"])
             )
         )
     
-    def day_to_ramadan():
-        target_date = datetime.date(2024, 3, 11)
-        today = datetime.date.today()
-        remaining_time = target_date - today
-        return remaining_time.days
+    @loader.watcher("only_messages", regex=r"\.ayat \d+:\d+$")
+    async def quran_watcher(self, message: Message):
+        sura, ayat = message.text.split()[1].split(":")
+        if message.from_id != self.tg_id:
+            await message.reply((await self.get_ayat(int(sura), int(ayat))))
+        else:
+            await utils.answer(message, (await self.get_ayat(int(sura), int(ayat))))
     
-    @loader.command(
-        ru_doc="Сколько дней до Рамадана 2024?",
-        en_doc="How many days are left before the Ramadan?"
-    )
-    async def ramadancmd(self, message: Message):
-        await utils.answer(message=message, response=f"🎉 До Священного месяца Рамадан осталось: {day_to_ramadan()} дней!")
+    @loader.watcher("only_messages", regex=r"\.muslim \d+$")
+    async def muslim_watcher(self, message: Message):
+        number = int(message.text.split()[1])
+        if message.from_id != self.tg_id:
+            await message.reply((await self.get_hadith(self.config["hadis_lang"], "muslim", number)))
+        else:
+            await utils.answer(message, (await self.get_hadith(self.config["hadis_lang"], "muslim", number)))
     
-    @loader.command(
-        ru_doc="<номер хадиса Сахих Муслим>",
-        en_doc="<hadis number sahih Muslim>"
-    )
-    async def muslimcmd(self, message: Message):
-        """<hadis number sahih Muslim>"""
-        args = utils.get_args_raw(message)
-        if args and args is not None:
-            try:
-                args = int(args)
-                url = f"https://sunnah.com/muslim:{args}"
-                html = (requests.get(url)).text
-                soup = BeautifulSoup(html, 'html.parser')
-                if self.config['hadis_lang'] == "English":
-                    hadis = soup.find('div', class_ = 'english_hadith_full')
-                    hadis_narrated = (hadis.find('div', class_ = 'hadith_narrated')).text
-                    hadis_text = ((hadis.find('div', class_ = 'text_details')).findAll('p')[0]).text
-                    await utils.answer(message=message, response=f"""<b>{hadis_narrated}</b>
-{hadis_text}""")
-                if self.config['hadis_lang'] == "Arabic":
-                    hadis = soup.find('div', class_ = "arabic_hadith_full arabic").text
-                    await utils.answer(message=message, response=f"{hadis}")
-                if self.config['hadis_lang'] == "Russian":
-                    hadis = soup.find('div', class_ = "arabic_hadith_full arabic").text
-                    await self.invoke(peer=message.peer_id, command="tr", args=f"ru {hadis}")
-            except ValueError:
-                await utils.answer(message=message, response=self.strings('hadis_wrong'))
+    @loader.watcher("only_messages", regex=r"\.abudawud \d+$")
+    async def abudawud_watcher(self, message: Message):
+        number = int(message.text.split()[1])
+        if message.from_id != self.tg_id:
+            await message.reply((await self.get_hadith(self.config["hadis_lang"], "abudawud", number)))
+        else:
+            await utils.answer(message, (await self.get_hadith(self.config["hadis_lang"], "abudawud", number)))
+    
+    @loader.watcher("only_messages", regex=r"\.bukhari \d+$")
+    async def bukhari_watcher(self, message: Message):
+        number = int(message.text.split()[1])
+        if message.from_id != self.tg_id:
+            await message.reply((await self.get_hadith(self.config["hadis_lang"], "bukhari", number)))
+        else:
+            await utils.answer(message, (await self.get_hadith(self.config["hadis_lang"], "bukhari", number)))
+    
+    async def get_ayat(self, sura: int, ayat: int):
+        async with aiohttp.ClientSession() as session:
+            async with session.get(self.quran_url.format(sura=sura, ayat=ayat)) as response:
+                data = await response.json()
+                if data['status'] != "OK":
+                    return "Что-то пошло не так..."
+                return (
+                    f"<emoji document_id=5373098009640836781>📚</emoji> Перевод: {data['data']['edition']['name']}\n" \
+                    f"<emoji document_id=5240004029769064410>❗️</emoji> Сура {data['data']['surah']['name']}, всего аятов в суре: {data['data']['surah']['numberOfAyahs']}\n" \
+                    f"<emoji document_id=5240426478457332312>#️⃣</emoji> Страница №{data['data']['page']}\n\n" \
+                    f"{data['data']['text']}"
+                )
 
-    @loader.command(
-        ru_doc="<номер хадиса Сахих Аль-Бухари>",
-        en_doc="<hadis number sahih Al-Bukhari>"
-    )
-    async def bukharicmd(self, message: Message):
-        """<hadis number sahih Al-Bukhari>"""
-        args = utils.get_args_raw(message)
-        if args and args is not None:
-            try:
-                args = int(args)
-                url = f"https://sunnah.com/bukhari:{args}"
-                html = (requests.get(url)).text
-                soup = BeautifulSoup(html, 'html.parser')
-                if self.config['hadis_lang'] == "English":
-                    try:
-                        hadis = soup.find('div', class_ = 'english_hadith_full')
-                        hadis_narrated = (hadis.find('div', class_ = 'hadith_narrated')).text
-                        hadis_text = ((hadis.find('div', class_ = 'text_details')).findAll('p')[0]).text
-                        await utils.answer(message=message, response=f"""<b>{hadis_narrated}</b>
-{hadis_text}""")
-                    except AttributeError:
-                        await utils.answer(message=message, response=self.strings('hadis_wrong'))
-                if self.config['hadis_lang'] == "Arabic":
-                    try:
-                        hadis = soup.find('div', class_ = "arabic_hadith_full arabic").text
-                        await utils.answer(message=message, response=f"{hadis}")
-                    except AttributeError:
-                        await utils.answer(message=message, response=self.strings('hadis_wrong'))
-                if self.config['hadis_lang'] == "Russian":
-                    try:
-                        hadis = soup.find('div', class_ = "arabic_hadith_full arabic").text
-                        await self.invoke(peer=message.peer_id, command="tr", args=f"ru {hadis}")
-                    except AttributeError:
-                        await utils.answer(message=message, response=self.strings('hadis_wrong'))
-            except ValueError:
-                await utils.answer(message=message, response=self.strings('hadis_wrong'))
-    @loader.command(
-        ru_doc="<сура:аят>",
-        en_doc="<surah:ayat>"
-    )
-    async def ayatcmd(self, message: Message):
-        """<surah:ayat>"""
-        args = utils.get_args_raw(message)
-        pam = args.split(":")
-        if len(pam) <= 1:
-            await utils.answer(message=message, response = self.strings('ayat_wrong'))
-        if len(pam) == 2:
-            url = f"https://quran-online.ru/{args}"
-            html = (requests.get(url)).text
-            soup = BeautifulSoup(html, 'html.parser')
-            try:
-                ayat = (((soup.findAll('dl', class_= 'dl-horizontal'))[6]).findAll('dd', class_ = 'ayat'))[0].text
-                await utils.answer(message=message, response=ayat)
-            except IndexError:
-                await utils.answer(message=message, response=self.strings('ayat_wrong'))
-        if len(pam) >= 3:
-            await utils.answer(message=message, response=self.strings('ayat_wrong'))
-
-    async def watcher(self, message: Message):
-        try:
-            if getattr(message, "from_id", None) != self._tg_id and not self.config['only_me']:
-                msg = (message.text).split(" ")
-                if len(msg) == 2:
-                    if msg[0] == '.ayat':
-                        suraayat = (msg[1]).split(":")
-                        if len(suraayat) == 2:
-                            url = "https://quran-online.ru/" + msg[1]
-                            html = (requests.get(url)).text
-                            soup = BeautifulSoup(html, 'html.parser')
-                            ayat = (((soup.findAll('dl', class_= 'dl-horizontal'))[6]).findAll('dd', class_ = 'ayat'))[0].text
-                            await message.reply(ayat)
-                    if msg[0] == ".bukhari":
-                        hadis_number = (msg[1])
-                        try:
-                            hadis_number = int(hadis_number)
-                            url = f"https://sunnah.com/bukhari:{hadis_number}"
-                            html = (requests.get(url)).text
-                            soup = BeautifulSoup(html, 'html.parser')
-                            if self.config['hadis_lang'] == "English":
-                                hadis = soup.find('div', class_ = 'english_hadith_full')
-                                hadis_narrated = (hadis.find('div', class_ = 'hadith_narrated')).text
-                                hadis_text = ((hadis.find('div', class_ = 'text_details')).findAll('p')[0]).text
-                                await message.reply(f"""<b>{hadis_narrated}</b>
-{hadis_text}""")
-                            if self.config['hadis_lang'] == "Arabic":
-                                hadis = soup.find('div', class_ = "arabic_hadith_full arabic").text
-                                await message.reply(hadis)
-                            if self.config['hadis_lang'] == "Russian":
-                                hadis = soup.find('div', class_ = "arabic_hadith_full arabic").text
-                                await self.invoke(peer=message.peer_id, command="tr", args=f"ru {hadis}")
-                        except:
-                            pass
-                if message.text == ".ramadan":
-                    await message.reply(f"🎉 До Священного месяца Рамадан осталось: {day_to_ramadan()} дней!")
-                if message.text.lower() == ".abdullah help":
-                    await self.invoke(peer=message.peer_id, command="help", args="Abdullah")
-        except:
-            pass
+    async def get_hadith(self, lang: str, edition: str, number: int):
+        async with aiohttp.ClientSession() as session:
+            async with session.get(self.hadith_url.format(lang=lang, edition=edition, number=number)) as response:
+                if response.status != 200:
+                    return "Что-то пошло не так..."
+                data = await response.json()
+                hadith_text =  (
+                    f"<emoji document_id=5373098009640836781>📚</emoji> Название книги: {data['metadata']['name']}, глава {data['metadata']['section'][list(data['metadata']['section'])[0]]} под номером {list(data['metadata']['section'])[0]}\n"
+                    f"<emoji document_id=5240426478457332312>#️⃣</emoji> Русский номер хадиса: {data['hadiths'][0]['hadithnumber']}, арабский номер хадиса: {data['hadiths'][0]['arabicnumber']}\n\n" \
+                    f"<emoji document_id=5249277199168579635>📌</emoji> <b>{data['hadiths'][0]['text']}</b>"
+                )
+                if grades := data['hadiths'][0]['grades']:
+                    hadith_text += "\n\n<emoji document_id=5248949999970036769>📣</emoji> Учёные об этом хадисе:\n"
+                    hadith_text += ",\n".join([f"<i><emoji document_id=5370724846936267183>🤔</emoji> {grade['name']} поставил оценку {grade['grade']}</i>" for grade in grades])
+                    # for grade in grades:
+                    #     hadith_text += ",\n".join(f"<i><emoji document_id=5370724846936267183>🤔</emoji> {grade['name']} поставил оценку {grade['grade']}</i>")
+                return hadith_text
+    
+    
+    async def ayatcmd(self, message):
+        """<сура:аят> - аят из корана"""
+    
+    async def bukharicmd(self, message):
+        """<номер хадиса> - хадис Бухари"""
+    
+    async def muslimcmd(self, message):
+        """<номер хадиса> - хадис Муслима"""
+    
+    async def abudawudcmd(self, message):
+        """<номер хадиса> - хадис Абу Дауда"""

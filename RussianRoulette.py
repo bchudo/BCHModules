@@ -13,7 +13,6 @@ import subprocess
 from ..inline.types import InlineCall
 import sys
 
-
 @loader.tds
 class RussianRouletteMod(loader.Module):
     """Русская рулетка"""
