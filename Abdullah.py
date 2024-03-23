@@ -37,6 +37,8 @@ class AbdullahMod(loader.Module):
     async def quran_watcher(self, message: Message):
         sura, ayat = message.text.split()[1].split(":")
         if message.from_id != self.tg_id:
+            if self.config['only_me']:
+                return
             await message.reply((await self.get_ayat(int(sura), int(ayat))))
         else:
             await utils.answer(message, (await self.get_ayat(int(sura), int(ayat))))
@@ -45,6 +47,8 @@ class AbdullahMod(loader.Module):
     async def muslim_watcher(self, message: Message):
         number = int(message.text.split()[1])
         if message.from_id != self.tg_id:
+            if self.config['only_me']:
+                return
             await message.reply((await self.get_hadith(self.config["hadis_lang"], "muslim", number)))
         else:
             await utils.answer(message, (await self.get_hadith(self.config["hadis_lang"], "muslim", number)))
@@ -53,6 +57,8 @@ class AbdullahMod(loader.Module):
     async def abudawud_watcher(self, message: Message):
         number = int(message.text.split()[1])
         if message.from_id != self.tg_id:
+            if self.config['only_me']:
+                return
             await message.reply((await self.get_hadith(self.config["hadis_lang"], "abudawud", number)))
         else:
             await utils.answer(message, (await self.get_hadith(self.config["hadis_lang"], "abudawud", number)))
@@ -61,6 +67,8 @@ class AbdullahMod(loader.Module):
     async def bukhari_watcher(self, message: Message):
         number = int(message.text.split()[1])
         if message.from_id != self.tg_id:
+            if self.config['only_me']:
+                return
             await message.reply((await self.get_hadith(self.config["hadis_lang"], "bukhari", number)))
         else:
             await utils.answer(message, (await self.get_hadith(self.config["hadis_lang"], "bukhari", number)))
