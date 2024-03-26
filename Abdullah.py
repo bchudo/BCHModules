@@ -94,7 +94,7 @@ class AbdullahMod(loader.Module):
                 data = await response.json()
                 hadith_text =  (
                     f"<emoji document_id=5373098009640836781>📚</emoji> Название книги: {data['metadata']['name']}, глава {data['metadata']['section'][list(data['metadata']['section'])[0]]} под номером {list(data['metadata']['section'])[0]}\n"
-                    f"<emoji document_id=5240426478457332312>#️⃣</emoji> Русский номер хадиса: {data['hadiths'][0]['hadithnumber']}, арабский номер хадиса: {data['hadiths'][0]['arabicnumber']}\n\n" \
+                    f"<emoji document_id=5240426478457332312>#️⃣</emoji> Русский номер хадиса: {data['hadiths'][0]['hadithnumber']}\n\n" \
                     f"<emoji document_id=5249277199168579635>📌</emoji> <b>{data['hadiths'][0]['text']}</b>"
                 )
                 if grades := data['hadiths'][0]['grades']:
